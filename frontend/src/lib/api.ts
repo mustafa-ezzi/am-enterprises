@@ -49,7 +49,16 @@ function getCookie(name: string): string | null {
 async function ensureCsrf(): Promise<string> {
   const existing = getCookie("csrftoken");
   if (existing) return existing;
-  await fetch(`${API_BASE}/api/auth/csrf/`, { credentials: "include" });
+  // On Railway, API is a different host — cookie is not readable via document.cookie.
+  const res = await fetch(`${API_BASE}/api/auth/csrf/`, { credentials: "include" });
+  if (res.ok) {
+    try {
+      const data = (await res.json()) as { csrfToken?: string };
+      if (data.csrfToken) return data.csrfToken;
+    } catch {
+      /* fall through */
+    }
+  }
   return getCookie("csrftoken") || "";
 }
 

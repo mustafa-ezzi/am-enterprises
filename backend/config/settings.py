@@ -144,9 +144,24 @@ MEDIA_ROOT = BASE_DIR / "media"
 
 # Trust Railway / reverse-proxy HTTPS
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
-if not DEBUG:
+
+# Cross-origin SPA (frontend + API on different *.up.railway.app hosts):
+# browsers only send cookies on credentialed cross-site fetches when SameSite=None + Secure.
+_on_railway = bool(os.getenv("RAILWAY_ENVIRONMENT") or os.getenv("RAILWAY_PROJECT_ID"))
+_cross_site_cookies = os.getenv(
+    "DJANGO_CROSS_SITE_COOKIES",
+    "true" if _on_railway else "false",
+).lower() in ("1", "true", "yes")
+if _cross_site_cookies:
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
+    SESSION_COOKIE_SAMESITE = "None"
+    CSRF_COOKIE_SAMESITE = "None"
+elif not DEBUG:
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    SESSION_COOKIE_SAMESITE = "Lax"
+    CSRF_COOKIE_SAMESITE = "Lax"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 

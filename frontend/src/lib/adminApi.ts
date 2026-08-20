@@ -57,7 +57,17 @@ function getCookie(name: string): string | null {
 }
 
 export async function ensureCsrf(): Promise<string> {
-  await fetch(`${API_BASE}/api/auth/csrf/`, { credentials: "include" });
+  // CSRF cookie is set on the API host; JS on the frontend host cannot read it
+  // cross-origin — use the token from the response body.
+  const res = await fetch(`${API_BASE}/api/auth/csrf/`, { credentials: "include" });
+  if (res.ok) {
+    try {
+      const data = (await res.json()) as { csrfToken?: string };
+      if (data.csrfToken) return data.csrfToken;
+    } catch {
+      /* fall through */
+    }
+  }
   return getCookie("csrftoken") || "";
 }
 
