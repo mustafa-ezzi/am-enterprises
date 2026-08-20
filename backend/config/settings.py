@@ -17,11 +17,32 @@ SECRET_KEY = os.getenv(
 
 DEBUG = os.getenv("DJANGO_DEBUG", "true").lower() in ("1", "true", "yes")
 
+def _normalize_allowed_host(value: str) -> str:
+    """Accept hostnames; strip accidental scheme/path from env values."""
+    h = value.strip()
+    if "://" in h:
+        h = h.split("://", 1)[1]
+    h = h.split("/")[0].split("?")[0]
+    # Host header never includes a port in Railway's check the same way, but strip if present
+    if h.startswith("[") and "]" in h:
+        return h  # IPv6 literal
+    return h.split(":")[0] if h.count(":") == 1 and h.rsplit(":", 1)[-1].isdigit() else h
+
+
 ALLOWED_HOSTS = [
-    h.strip()
-    for h in os.getenv("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1,.railway.app").split(",")
-    if h.strip()
+    host
+    for host in (
+        _normalize_allowed_host(h)
+        for h in os.getenv(
+            "DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1,.railway.app"
+        ).split(",")
+        if h.strip()
+    )
+    if host
 ]
+# Railway public domains (safe default if env only lists localhost)
+if ".railway.app" not in ALLOWED_HOSTS:
+    ALLOWED_HOSTS.append(".railway.app")
 
 INSTALLED_APPS = [
     "django.contrib.admin",
@@ -80,8 +101,8 @@ if _database_url:
     import dj_database_url
 
     DATABASES = {
-        "default": dj_database_url.parse(
-            _database_url,
+        "default": dj_database_url.config(
+            default=_database_url,
             conn_max_age=600,
             ssl_require=os.getenv("DATABASE_SSL_REQUIRE", "true").lower()
             in ("1", "true", "yes"),
@@ -131,24 +152,42 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 AUTH_USER_MODEL = "accounts.User"
 
-# CORS — React Vite dev + future Railway frontend
+def _normalize_origin(value: str) -> str:
+    """scheme://host[:port] with no trailing slash/path."""
+    o = value.strip().rstrip("/")
+    if "://" not in o:
+        return o
+    scheme, rest = o.split("://", 1)
+    host = rest.split("/")[0]
+    return f"{scheme}://{host}"
+
+
+# CORS — React Vite dev + Railway frontend
 CORS_ALLOWED_ORIGINS = [
-    o.strip()
-    for o in os.getenv(
-        "CORS_ALLOWED_ORIGINS",
-        "http://localhost:5173,http://127.0.0.1:5173",
-    ).split(",")
-    if o.strip()
+    origin
+    for origin in (
+        _normalize_origin(o)
+        for o in os.getenv(
+            "CORS_ALLOWED_ORIGINS",
+            "http://localhost:5173,http://127.0.0.1:5173",
+        ).split(",")
+        if o.strip()
+    )
+    if origin
 ]
 CORS_ALLOW_CREDENTIALS = True
 
 CSRF_TRUSTED_ORIGINS = [
-    o.strip()
-    for o in os.getenv(
-        "CSRF_TRUSTED_ORIGINS",
-        "http://localhost:5173,http://127.0.0.1:5173",
-    ).split(",")
-    if o.strip()
+    origin
+    for origin in (
+        _normalize_origin(o)
+        for o in os.getenv(
+            "CSRF_TRUSTED_ORIGINS",
+            "http://localhost:5173,http://127.0.0.1:5173",
+        ).split(",")
+        if o.strip()
+    )
+    if origin
 ]
 
 REST_FRAMEWORK = {

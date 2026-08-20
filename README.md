@@ -48,12 +48,13 @@ AM enterprises/
 - **Root directory:** `backend`
 - **Build command:**
   ```bash
-  pip install -r requirements.txt && python manage.py collectstatic --noinput && python manage.py migrate --noinput
+  pip install -r requirements.txt && python manage.py collectstatic --noinput
   ```
-- **Start command:**
+- **Start / release command:**
   ```bash
-  gunicorn config.wsgi:application --bind 0.0.0.0:$PORT
+  python manage.py migrate --noinput && gunicorn config.wsgi:application --bind 0.0.0.0:$PORT
   ```
+  (Keep migrate on **start**, not build — build often has no DB yet.)
 - After first deploy (once): Railway shell → `python manage.py seed_catalog`
 
 ### Frontend service
