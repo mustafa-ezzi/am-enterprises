@@ -68,10 +68,7 @@ export function AdminLoginPage() {
           <p className="text-body-sm" style={{ margin: 0 }}>
             AM Enterprises control panel
           </p>
-          <p className="text-caption" style={{ margin: "12px 0 0" }}>
-            After seed: username <strong>admin</strong> · password{" "}
-            <strong>admin123</strong>
-          </p>
+         
         </div>
         <Input
           label="Username"

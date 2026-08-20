@@ -18,8 +18,21 @@ export type AdminUser = {
 export type AdminStats = {
   orders_today: number;
   revenue_today: string;
+  orders_week: number;
+  revenue_week: string;
   low_stock: number;
   pending_shipments: number;
+  catalog: {
+    products: number;
+    categories: number;
+    brands: number;
+  };
+  series_14d: Array<{
+    date: string;
+    label: string;
+    orders: number;
+    revenue: string;
+  }>;
   recent_orders: Array<{
     order_number: string;
     full_name: string;
@@ -29,6 +42,11 @@ export type AdminStats = {
     created_at: string;
   }>;
   status_breakdown: Array<{ status: string; count: number }>;
+  top_products: Array<{
+    product_name: string;
+    units: number;
+    revenue: string;
+  }>;
 };
 
 export type CustomerRow = {

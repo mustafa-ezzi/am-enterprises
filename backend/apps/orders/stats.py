@@ -1,11 +1,49 @@
+from datetime import timedelta
+from decimal import Decimal
+
 from django.db.models import Count, Max, Q, Sum
+from django.db.models.functions import TruncDate
 from django.utils import timezone
 from rest_framework.permissions import IsAdminUser
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.catalog.models import Product
-from apps.orders.models import Order
+from apps.catalog.models import Brand, Category, Product
+from apps.orders.models import Order, OrderItem
+
+
+def _day_series(days: int = 14):
+    """Return list of {date, orders, revenue} for the last `days` including today."""
+    today = timezone.localdate()
+    start = today - timedelta(days=days - 1)
+    qs = (
+        Order.objects.filter(created_at__date__gte=start)
+        .exclude(status=Order.Status.CANCELLED)
+        .annotate(day=TruncDate("created_at"))
+        .values("day")
+        .annotate(orders=Count("id"), revenue=Sum("total"))
+        .order_by("day")
+    )
+    by_day = {
+        row["day"]: {
+            "orders": row["orders"],
+            "revenue": row["revenue"] or Decimal("0"),
+        }
+        for row in qs
+    }
+    series = []
+    for i in range(days):
+        d = start + timedelta(days=i)
+        hit = by_day.get(d)
+        series.append(
+            {
+                "date": d.isoformat(),
+                "label": d.strftime("%b %d"),
+                "orders": hit["orders"] if hit else 0,
+                "revenue": str(hit["revenue"] if hit else Decimal("0")),
+            }
+        )
+    return series
 
 
 class AdminStatsView(APIView):
@@ -13,11 +51,19 @@ class AdminStatsView(APIView):
 
     def get(self, request):
         today = timezone.localdate()
+        week_ago = today - timedelta(days=6)
+
         orders_today_qs = Order.objects.filter(created_at__date=today).exclude(
             status=Order.Status.CANCELLED
         )
         orders_today = orders_today_qs.count()
         revenue_today = orders_today_qs.aggregate(total=Sum("total"))["total"] or 0
+
+        orders_week_qs = Order.objects.filter(created_at__date__gte=week_ago).exclude(
+            status=Order.Status.CANCELLED
+        )
+        orders_week = orders_week_qs.count()
+        revenue_week = orders_week_qs.aggregate(total=Sum("total"))["total"] or 0
 
         low_stock = Product.objects.filter(is_active=True, stock__lte=5).count()
         pending = Order.objects.filter(
@@ -45,14 +91,35 @@ class AdminStatsView(APIView):
             .order_by("status")
         )
 
+        top_products = list(
+            OrderItem.objects.exclude(order__status=Order.Status.CANCELLED)
+            .values("product_name")
+            .annotate(
+                units=Sum("quantity"),
+                revenue=Sum("line_total"),
+            )
+            .order_by("-units")[:6]
+        )
+        for row in top_products:
+            row["revenue"] = str(row["revenue"] or 0)
+
         return Response(
             {
                 "orders_today": orders_today,
                 "revenue_today": str(revenue_today),
+                "orders_week": orders_week,
+                "revenue_week": str(revenue_week),
                 "low_stock": low_stock,
                 "pending_shipments": pending,
+                "catalog": {
+                    "products": Product.objects.filter(is_active=True).count(),
+                    "categories": Category.objects.filter(is_active=True).count(),
+                    "brands": Brand.objects.filter(is_active=True).count(),
+                },
+                "series_14d": _day_series(14),
                 "recent_orders": recent,
                 "status_breakdown": status_breakdown,
+                "top_products": top_products,
             }
         )
 
