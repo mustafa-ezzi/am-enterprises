@@ -1,0 +1,2 @@
+# Clean unused vanilla Vite leftovers if present
+# (React entry is src/main.tsx)
