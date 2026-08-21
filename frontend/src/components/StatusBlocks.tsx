@@ -30,15 +30,14 @@ export function Skeleton({
 
 export function ProductCardSkeleton() {
   return (
-    <div
-      className="product-card"
-      style={{ display: "flex", flexDirection: "column", gap: 12, padding: 0 }}
-    >
-      <Skeleton height={220} />
-      <div style={{ padding: "0 16px 16px", display: "grid", gap: 10 }}>
-        <Skeleton height={14} width="40%" />
-        <Skeleton height={18} width="80%" />
-        <Skeleton height={14} width="30%" />
+    <div className="product-card product-card--skeleton">
+      <div className="product-card__media">
+        <Skeleton height="100%" className="product-card__skeleton-media" />
+      </div>
+      <div className="product-card__body">
+        <Skeleton height={12} width="42%" />
+        <Skeleton height={16} width="88%" />
+        <Skeleton height={12} width="55%" />
       </div>
     </div>
   );

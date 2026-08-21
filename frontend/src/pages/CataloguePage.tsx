@@ -29,6 +29,7 @@ export function CataloguePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchDraft, setSearchDraft] = useState(params.get("search") ?? "");
+  const [filtersOpen, setFiltersOpen] = useState(false);
 
   const page = Number(params.get("page") || "1");
   const category = params.get("category") ?? "";
@@ -36,6 +37,16 @@ export function CataloguePage() {
   const search = params.get("search") ?? "";
   const ordering = params.get("ordering") ?? "name";
   const availability = params.get("availability") ?? "all";
+
+  const activeFilterCount = useMemo(() => {
+    let n = 0;
+    if (brand) n += 1;
+    if (category) n += 1;
+    if (search) n += 1;
+    if (ordering && ordering !== "name") n += 1;
+    if (availability && availability !== "all") n += 1;
+    return n;
+  }, [brand, category, search, ordering, availability]);
 
   useEffect(() => {
     setSearchDraft(search);
@@ -117,6 +128,11 @@ export function CataloguePage() {
     updateParam("search", searchDraft.trim());
   }
 
+  function clearFilters() {
+    setParams(new URLSearchParams());
+    setSearchDraft("");
+  }
+
   return (
     <StorefrontLayout>
       <PageMeta
@@ -129,93 +145,113 @@ export function CataloguePage() {
         <h1 className="text-heading" style={{ margin: "0 0 12px" }}>
           Catalogue
         </h1>
-        <p className="text-body" style={{ maxWidth: 520, marginBottom: 24 }}>
+        <p className="text-body catalogue-intro">
           Shop by AM Enterprises sub-brands — Daisy and Kitchenware — or browse
           by room.
         </p>
 
-        <p className="text-caption" style={{ marginBottom: 10, color: "var(--color-gold)" }}>
-          Brands
-        </p>
-        <PillNav
-          items={[
-            {
-              label: "All brands",
-              active: !brand,
-              onClick: () => updateParam("brand", ""),
-            },
-            ...brands.map((b) => ({
-              label: b.name,
-              active: brand === b.slug,
-              onClick: () => updateParam("brand", b.slug),
-            })),
-          ]}
-          style={{ marginBottom: 20 }}
-        />
+        <div className="catalogue-filters-panel">
+          <button
+            type="button"
+            className="catalogue-filters-toggle"
+            aria-expanded={filtersOpen}
+            aria-controls="catalogue-filters"
+            onClick={() => setFiltersOpen((open) => !open)}
+          >
+            <span className="catalogue-filters-toggle__label">
+              Filters
+              {activeFilterCount > 0 ? (
+                <span className="catalogue-filters-toggle__count">
+                  {activeFilterCount}
+                </span>
+              ) : null}
+            </span>
+            <span className="catalogue-filters-toggle__chevron" aria-hidden>
+              {filtersOpen ? "−" : "+"}
+            </span>
+          </button>
 
-        <p className="text-caption" style={{ marginBottom: 10, color: "var(--color-gold)" }}>
-          Categories
-        </p>
-        <PillNav
-          items={[
-            {
-              label: "All",
-              active: !category,
-              onClick: () => updateParam("category", ""),
-            },
-            ...categories.map((c) => ({
-              label: c.name,
-              active: category === c.slug,
-              onClick: () => updateParam("category", c.slug),
-            })),
-          ]}
-          style={{ marginBottom: 28 }}
-        />
+          <div
+            id="catalogue-filters"
+            className={`catalogue-filters-body${filtersOpen ? " is-open" : ""}`}
+            hidden={!filtersOpen}
+          >
+            <p className="text-caption catalogue-filters-caption">Brands</p>
+            <PillNav
+              items={[
+                {
+                  label: "All brands",
+                  active: !brand,
+                  onClick: () => updateParam("brand", ""),
+                },
+                ...brands.map((b) => ({
+                  label: b.name,
+                  active: brand === b.slug,
+                  onClick: () => updateParam("brand", b.slug),
+                })),
+              ]}
+              style={{ marginBottom: 16 }}
+            />
 
-        <form
-          onSubmit={submitSearch}
-          style={{
-            display: "grid",
-            gap: 16,
-            gridTemplateColumns: "1fr",
-            marginBottom: 28,
-          }}
-          className="catalogue-filters"
-        >
-          <Input
-            label="Search"
-            value={searchDraft}
-            onChange={(e) => setSearchDraft(e.target.value)}
-            placeholder="Search products"
-          />
-          <Select
-            label="Sort"
-            value={ordering}
-            onChange={(e) => updateParam("ordering", e.target.value)}
-            options={[
-              { value: "name", label: "Name A–Z" },
-              { value: "-name", label: "Name Z–A" },
-              { value: "price", label: "Price low–high" },
-              { value: "-price", label: "Price high–low" },
-              { value: "-created_at", label: "Newest" },
-            ]}
-          />
-          <Select
-            label="Availability"
-            value={availability}
-            onChange={(e) => updateParam("availability", e.target.value)}
-            options={[
-              { value: "all", label: "All" },
-              { value: "in_stock", label: "In stock" },
-              { value: "out_of_stock", label: "Out of stock" },
-            ]}
-          />
-          <div style={{ display: "flex", alignItems: "end" }}>
-            <PillFilledButton type="submit">Apply search</PillFilledButton>
+            <p className="text-caption catalogue-filters-caption">Categories</p>
+            <PillNav
+              items={[
+                {
+                  label: "All",
+                  active: !category,
+                  onClick: () => updateParam("category", ""),
+                },
+                ...categories.map((c) => ({
+                  label: c.name,
+                  active: category === c.slug,
+                  onClick: () => updateParam("category", c.slug),
+                })),
+              ]}
+              style={{ marginBottom: 16 }}
+            />
+
+            <form onSubmit={submitSearch} className="catalogue-filters">
+              <Input
+                label="Search"
+                value={searchDraft}
+                onChange={(e) => setSearchDraft(e.target.value)}
+                placeholder="Search products"
+              />
+              <Select
+                label="Sort"
+                value={ordering}
+                onChange={(e) => updateParam("ordering", e.target.value)}
+                options={[
+                  { value: "name", label: "Name A–Z" },
+                  { value: "-name", label: "Name Z–A" },
+                  { value: "price", label: "Price low–high" },
+                  { value: "-price", label: "Price high–low" },
+                  { value: "-created_at", label: "Newest" },
+                ]}
+              />
+              <Select
+                label="Availability"
+                value={availability}
+                onChange={(e) => updateParam("availability", e.target.value)}
+                options={[
+                  { value: "all", label: "All" },
+                  { value: "in_stock", label: "In stock" },
+                  { value: "out_of_stock", label: "Out of stock" },
+                ]}
+              />
+              <div className="catalogue-filters__actions">
+                <PillFilledButton type="submit">Apply search</PillFilledButton>
+                {activeFilterCount > 0 ? (
+                  <PillGhostButton type="button" onClick={clearFilters}>
+                    Clear
+                  </PillGhostButton>
+                ) : null}
+              </div>
+            </form>
           </div>
-        </form>
+        </div>
 
-        <p className="text-caption" style={{ marginBottom: 20, color: "var(--color-pewter)" }}>
+        <p className="text-caption catalogue-result-meta">
           {loading ? "Loading…" : `${count} products`}
           {brand ? ` · ${brands.find((b) => b.slug === brand)?.name ?? brand}` : ""}
           {category ? ` · ${categories.find((c) => c.slug === category)?.name ?? category}` : ""}
@@ -235,12 +271,7 @@ export function CataloguePage() {
             title="No products found"
             description="Try another search or clear filters."
             action={
-              <PillGhostButton
-                onClick={() => {
-                  setParams(new URLSearchParams());
-                  setSearchDraft("");
-                }}
-              >
+              <PillGhostButton onClick={clearFilters}>
                 Clear filters
               </PillGhostButton>
             }
@@ -259,16 +290,7 @@ export function CataloguePage() {
         ) : null}
 
         {!loading && totalPages > 1 ? (
-          <div
-            style={{
-              display: "flex",
-              gap: 12,
-              justifyContent: "center",
-              marginTop: 40,
-              flexWrap: "wrap",
-              alignItems: "center",
-            }}
-          >
+          <div className="catalogue-pagination">
             <PillGhostButton
               disabled={page <= 1}
               onClick={() => updateParam("page", String(page - 1), false)}
@@ -287,19 +309,10 @@ export function CataloguePage() {
           </div>
         ) : null}
 
-        <p className="text-caption" style={{ marginTop: 24, color: "var(--color-pewter)" }}>
+        <p className="text-caption catalogue-currency-note">
           Prices in {formatMoney(0, currency).split(" ")[0]}
         </p>
       </SectionBand>
-
-      <style>{`
-        @media (min-width: 768px) {
-          .catalogue-filters {
-            grid-template-columns: 1.4fr 1fr 1fr auto !important;
-            align-items: end;
-          }
-        }
-      `}</style>
     </StorefrontLayout>
   );
 }
